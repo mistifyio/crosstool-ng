@@ -1,0 +1,57 @@
+buildscript {
+    repositories {
+        jcenter()
+        maven { url "https://plugins.gradle.org/m2/" }
+        dependencies {
+            classpath 'org.ysb33r.gradle:gnumake:1.0.2'
+            classpath 'nu.studer:gradle-credentials-plugin:1.0.1'
+        }
+    }
+}
+
+buildNumber = buildNumber ?: '9999'
+
+group = 'org.mistify'
+version = "1.2.${buildNumber}"
+
+apply plugin: 'org.ysb33r.gnumake'
+apply plugin: 'nu.studer.credentials'
+
+ext.buildDir = 'build'
+
+gnumake {
+    defaultFlags O: "${buildDir}/compiledOutput"
+}
+
+task archiveBuildOutput(type: Zip){
+    from "${buildDir}/compiledOutput"
+    destinatiionDir "${buildDir}/distributions"
+}
+
+task build(dependsOn: [makeClean, makeBuild, archiveBuildOutput])
+
+apply plugin: 'maven-publish'
+
+ext.s3Key = credentials.s3
+
+publishing {
+    repositories {
+        maven {
+            url "s3://omniti-mystify-artifacts/libs-release-local"
+            credentials(AwsCredentials) {
+                accessKey 'AKIAIVD4UP67JBMGTSRA'
+                secretKey s3Key
+            }
+        }
+    }
+
+    publications {
+        mavenJava(MavenPublication) {
+            artifact archiveBuildOutput
+        }
+    }
+}
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '2.4'
+}

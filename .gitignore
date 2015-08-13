@@ -13,6 +13,12 @@ config.gen/
 .config
 .config.2
 
+# Gradle
+.idea/
+.gradle/
+build/
+*.iml
+
 # Temporaries
 .*.swp
 build.log
