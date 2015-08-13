@@ -9,7 +9,7 @@ buildscript {
     }
 }
 
-buildNumber = buildNumber ?: '9999'
+ext.buildNumber = project.hasProperty('buildNumber') ? buildNumber : '9999'
 
 group = 'org.mistify'
 version = "1.2.${buildNumber}"
@@ -17,18 +17,45 @@ version = "1.2.${buildNumber}"
 apply plugin: 'org.ysb33r.gnumake'
 apply plugin: 'nu.studer.credentials'
 
-ext.buildDir = 'build'
+ext.buildDir = 'build' as File
+ext.buildOutputDir = "${buildDir}/compiledOutput" as File
 
 gnumake {
-    defaultFlags O: "${buildDir}/compiledOutput"
+    defaultFlags O: buildOutputDir
 }
 
-task archiveBuildOutput(type: Zip){
-    from "${buildDir}/compiledOutput"
-    destinatiionDir "${buildDir}/distributions"
+task createBuildDirs()<<{
+  buildOutputDir.mkdirs()
+}
+
+task bootstrapToolchain(type: Exec, dependsOn: createBuildDirs){
+    commandLine 'bash', '-c', './bootstrap'
+}
+
+task configureToolchain(type: Exec, dependsOn: bootstrapToolchain){
+    commandLine 'bash', '-c', "./configure --enable-local --prefix=${buildOutputDir}"
+}
+
+makeBuild.mustRunAfter makeClean
+makeBuild.dependsOn configureToolchain
+
+task archiveBuildOutput(type: Zip, dependsOn: makeBuild){
+    from buildOutputDir
+    destinationDir file("${buildDir}/distributions")
 }
 
 task build(dependsOn: [makeClean, makeBuild, archiveBuildOutput])
+
+//task makeDirClean(type: GnuMakeBuild, group: 'GNU Make tasks') {
+//    description "Executes make <project>-dirclean"
+//
+//    makeInputs { file makeFile }
+//    makeOutputs { file makeFile }
+//
+//    chDir buildRootDir
+//    targets "${project.name}-dirclean"
+//}
+
 
 apply plugin: 'maven-publish'
 
