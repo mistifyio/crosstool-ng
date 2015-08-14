@@ -9,12 +9,7 @@ buildscript {
     }
 }
 
-ext.buildNumber = project.hasProperty('buildNumber') ? buildNumber : '9999'
 
-group = 'org.mistify'
-version = "1.2.${buildNumber}"
-
-ext.buildDir = buildDir as File
 ext.buildOutputDir = "${buildDir}/compiledOutput" as File
 ext.downloadDir = "${buildDir}/downloads" as File
 ext.configFile = configFile as File
@@ -23,12 +18,18 @@ ext.config = new Properties()
 config.load(configFile.newDataInputStream())
 
 ext.kernelVersion = getStrippedConfigValue('CT_KERNEL_VERSION')
+
 logger.quiet "Toolchain download dir: '${downloadDir}'"
 logger.quiet "Toolchain build output dir: '${buildOutputDir}'"
 logger.quiet "Toolchain kernel headers version: '${kernelVersion}'"
 
+
+apply plugin: 'distribution'
+
+group = 'org.mistify'
+version = versionNumber
+
 apply plugin: 'org.ysb33r.gnumake'
-apply plugin: 'nu.studer.credentials'
 
 task createBuildDirs() {
     outputs.files buildOutputDir, downloadDir
@@ -39,10 +40,8 @@ task createBuildDirs() {
     }
 }
 
-task copyCustomConfig(type: Copy) {
-    from configFile
-    into rootDir
-    rename configFile.name, '.config'
+task copyCustomConfig() << {
+    ant.copy(file: configFile, tofile: "$rootDir/.config")
 }
 
 task bootstrapToolchain(type: Exec, dependsOn: [createBuildDirs, copyCustomConfig]) {
@@ -65,7 +64,6 @@ makeBuild {
     mustRunAfter makeClean
     dependsOn copyCustomConfig, configureToolchain
 }
-rootDir.listFiles()
 
 task generateMenuConfig(type: Exec, dependsOn: [makeBuild], group: 'Toolchain') {
     environment TC_PREFIX: arch, TC_ARCH_SUFFIX: "${versionExtra}-${version}",
@@ -76,7 +74,6 @@ task generateMenuConfig(type: Exec, dependsOn: [makeBuild], group: 'Toolchain') 
 
 task buildToolchain(type: Exec, dependsOn: makeBuild) {
     description "Executes ./ct-ng build - Builds actual toolchain"
-    outputs.dir buildOutputDir
 
     environment TC_PREFIX: arch, TC_ARCH_SUFFIX: "${versionExtra}-${version}",
             TC_PREFIX_DIR: buildOutputDir, TC_LOCAL_TARBALLS_DIR: downloadDir
@@ -84,20 +81,16 @@ task buildToolchain(type: Exec, dependsOn: makeBuild) {
     commandLine 'bash', '-c', './ct-ng build'
 }
 
-task archiveBuildOutput(type: Zip, dependsOn: buildToolchain) {
-    description "Creates a zip distribution of toolchain build output"
-    from buildOutputDir
-    destinationDir file("${buildDir}/distributions")
-}
 
-task build(dependsOn: [archiveBuildOutput], group: 'Toolchain')
+task build(dependsOn: [buildToolchain], group: 'Toolchain')
 
 task clean(type: Delete, group: 'Toolchain') {
+    description "Deletes ONLY crosstool-ng build output"
     delete buildOutputDir
 }
 
-task fullClean(type: Delete, dependsOn: clean, group: 'Toolchain'){
-    description "Wipes everything build outputs, autoconfigure, and toolchain make build"
+task fullClean(type: Delete, dependsOn: clean, group: 'Toolchain') {
+    description "Wipes everything build outputs, autoconfigure, and toolchain make build ouput"
 
     delete "${rootDir}/.config"
     delete "${rootDir}/config.status"
@@ -109,9 +102,26 @@ tasks.withType(Exec) {
 
 
 
-apply plugin: 'maven-publish'
+distributions {
+    main {
+        baseName = versionExtra ? "${project.name}-${arch}-${versionExtra}" : "${project.name}-${arch}"
+        contents {
+            from buildOutputDir
+        }
+    }
+}
+
+distTar{
+    compression = Compression.GZIP
+}
+
+
+apply plugin: 'nu.studer.credentials'
 
 ext.s3Key = credentials.s3
+
+
+apply plugin: 'maven-publish'
 
 publishing {
     repositories {
@@ -126,7 +136,8 @@ publishing {
 
     publications {
         toolchain(MavenPublication) {
-            artifact archiveBuildOutput
+            artifactId distTar.baseName
+            artifact distTar
         }
     }
 }
