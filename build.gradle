@@ -14,47 +14,99 @@ ext.buildNumber = project.hasProperty('buildNumber') ? buildNumber : '9999'
 group = 'org.mistify'
 version = "1.2.${buildNumber}"
 
+ext.buildDir = buildDir as File
+ext.buildOutputDir = "${buildDir}/compiledOutput" as File
+ext.downloadDir = "${buildDir}/downloads" as File
+ext.configFile = configFile as File
+
+ext.config = new Properties()
+config.load(configFile.newDataInputStream())
+
+ext.kernelVersion = getStrippedConfigValue('CT_KERNEL_VERSION')
+logger.quiet "Toolchain download dir: '${downloadDir}'"
+logger.quiet "Toolchain build output dir: '${buildOutputDir}'"
+logger.quiet "Toolchain kernel headers version: '${kernelVersion}'"
+
 apply plugin: 'org.ysb33r.gnumake'
 apply plugin: 'nu.studer.credentials'
 
-ext.buildDir = 'build' as File
-ext.buildOutputDir = "${buildDir}/compiledOutput" as File
+task createBuildDirs() {
+    outputs.files buildOutputDir, downloadDir
 
-gnumake {
-    defaultFlags O: buildOutputDir
+    doLast {
+        buildOutputDir.mkdirs()
+        downloadDir.mkdirs()
+    }
 }
 
-task createBuildDirs()<<{
-  buildOutputDir.mkdirs()
+task copyCustomConfig(type: Copy) {
+    from configFile
+    into rootDir
+    rename configFile.name, '.config'
 }
 
-task bootstrapToolchain(type: Exec, dependsOn: createBuildDirs){
+task bootstrapToolchain(type: Exec, dependsOn: [createBuildDirs, copyCustomConfig]) {
+    outputs.file "$rootDir/config.status"
+    outputs.file "$rootDir/.config"
     commandLine 'bash', '-c', './bootstrap'
 }
 
-task configureToolchain(type: Exec, dependsOn: bootstrapToolchain){
-    commandLine 'bash', '-c', "./configure --enable-local --prefix=${buildOutputDir}"
+task configureToolchain(type: Exec, dependsOn: bootstrapToolchain) {
+    outputs.file "$rootDir/config.status"
+    outputs.upToDateWhen { !bootstrapToolchain.didWork }
+    commandLine 'bash', '-c', "./configure --enable-local --prefix=${rootDir}"
 }
 
-makeBuild.mustRunAfter makeClean
-makeBuild.dependsOn configureToolchain
+makeClean.group = "GNU Make tasks"
 
-task archiveBuildOutput(type: Zip, dependsOn: makeBuild){
+makeBuild {
+    outputs.file "$rootDir/ct-ng"
+    outputs.upToDateWhen { !configureToolchain.didWork }
+    mustRunAfter makeClean
+    dependsOn copyCustomConfig, configureToolchain
+}
+rootDir.listFiles()
+
+task generateMenuConfig(type: Exec, dependsOn: [makeBuild], group: 'Toolchain') {
+    environment TC_PREFIX: arch, TC_ARCH_SUFFIX: "${versionExtra}-${version}",
+            TC_PREFIX_DIR: buildOutputDir, TC_LOCAL_TARBALLS_DIR: downloadDir
+
+    commandLine 'bash', '-c', './ct-ng menuconfig'
+}
+
+task buildToolchain(type: Exec, dependsOn: makeBuild) {
+    description "Executes ./ct-ng build - Builds actual toolchain"
+    outputs.dir buildOutputDir
+
+    environment TC_PREFIX: arch, TC_ARCH_SUFFIX: "${versionExtra}-${version}",
+            TC_PREFIX_DIR: buildOutputDir, TC_LOCAL_TARBALLS_DIR: downloadDir
+
+    commandLine 'bash', '-c', './ct-ng build'
+}
+
+task archiveBuildOutput(type: Zip, dependsOn: buildToolchain) {
+    description "Creates a zip distribution of toolchain build output"
     from buildOutputDir
     destinationDir file("${buildDir}/distributions")
 }
 
-task build(dependsOn: [makeClean, makeBuild, archiveBuildOutput])
+task build(dependsOn: [archiveBuildOutput], group: 'Toolchain')
 
-//task makeDirClean(type: GnuMakeBuild, group: 'GNU Make tasks') {
-//    description "Executes make <project>-dirclean"
-//
-//    makeInputs { file makeFile }
-//    makeOutputs { file makeFile }
-//
-//    chDir buildRootDir
-//    targets "${project.name}-dirclean"
-//}
+task clean(type: Delete, group: 'Toolchain') {
+    delete buildOutputDir
+}
+
+task fullClean(type: Delete, dependsOn: clean, group: 'Toolchain'){
+    description "Wipes everything build outputs, autoconfigure, and toolchain make build"
+
+    delete "${rootDir}/.config"
+    delete "${rootDir}/config.status"
+}
+
+tasks.withType(Exec) {
+    doFirst { logger.quiet "CMD: '${it.commandLine.join(' ')}'" }
+}
+
 
 
 apply plugin: 'maven-publish'
@@ -73,12 +125,18 @@ publishing {
     }
 
     publications {
-        mavenJava(MavenPublication) {
+        toolchain(MavenPublication) {
             artifact archiveBuildOutput
         }
     }
 }
 
+
+
 task wrapper(type: Wrapper) {
     gradleVersion = '2.4'
+}
+
+def getStrippedConfigValue(String keyName) {
+    config.getProperty(keyName).replaceAll(/^"/, '').replaceAll(/"$/, '').trim()
 }
