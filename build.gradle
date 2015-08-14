@@ -41,6 +41,8 @@ task createBuildDirs() {
 }
 
 task copyCustomConfig() << {
+    //We're using an ANT copy here instead of a Gradle copy because
+    // Gradle does not like copying files into the rootDir
     ant.copy(file: configFile, tofile: "$rootDir/.config")
 }
 
@@ -72,6 +74,15 @@ task generateMenuConfig(type: Exec, dependsOn: [makeBuild], group: 'Toolchain') 
     commandLine 'bash', '-c', './ct-ng menuconfig'
 }
 
+task cleanToolchain(type: Exec){
+    description "Executes ./ct-ng clean - Clean actual toolchain output"
+
+    environment TC_PREFIX: arch, TC_ARCH_SUFFIX: "${versionExtra}-${version}",
+            TC_PREFIX_DIR: buildOutputDir, TC_LOCAL_TARBALLS_DIR: downloadDir
+
+    commandLine 'bash', '-c', './ct-ng clean'
+}
+
 task buildToolchain(type: Exec, dependsOn: makeBuild) {
     description "Executes ./ct-ng build - Builds actual toolchain"
 
@@ -84,7 +95,7 @@ task buildToolchain(type: Exec, dependsOn: makeBuild) {
 
 task build(dependsOn: [buildToolchain], group: 'Toolchain')
 
-task clean(type: Delete, group: 'Toolchain') {
+task clean(type: Delete, group: 'Toolchain', dependsOn: cleanToolchain) {
     description "Deletes ONLY crosstool-ng build output"
     delete buildOutputDir
 }
