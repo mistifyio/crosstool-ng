@@ -75,12 +75,12 @@ task generateMenuConfig(type: Exec, dependsOn: [makeBuild], group: 'Toolchain') 
 }
 
 task cleanToolchain(type: Exec){
-    description "Executes ./ct-ng clean - Clean actual toolchain output"
+    description "Executes ./ct-ng distclean - Clean actual toolchain output"
 
     environment TC_PREFIX: arch, TC_ARCH_SUFFIX: "${versionExtra}-${version}",
             TC_PREFIX_DIR: buildOutputDir, TC_LOCAL_TARBALLS_DIR: downloadDir
 
-    commandLine 'bash', '-c', './ct-ng clean'
+    commandLine 'bash', '-c', './ct-ng distclean'
 }
 
 task buildToolchain(type: Exec, dependsOn: makeBuild) {
