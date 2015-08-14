@@ -27,9 +27,11 @@ logger.quiet "Toolchain kernel headers version: '${kernelVersion}'"
 apply plugin: 'distribution'
 
 group = 'org.mistify'
-version = versionNumber
 
-apply plugin: 'org.ysb33r.gnumake'
+ext.buildNumber = project.hasProperty('buildNumber') ? buildNumber : '99999'
+version = versionNumber + ".${buildNumber}"
+
+
 
 task createBuildDirs() {
     outputs.files buildOutputDir, downloadDir
@@ -49,23 +51,30 @@ task copyCustomConfig() << {
 task bootstrapToolchain(type: Exec, dependsOn: [createBuildDirs, copyCustomConfig]) {
     outputs.file "$rootDir/config.status"
     outputs.file "$rootDir/.config"
+
     commandLine 'bash', '-c', './bootstrap'
 }
 
 task configureToolchain(type: Exec, dependsOn: bootstrapToolchain) {
     outputs.file "$rootDir/config.status"
     outputs.upToDateWhen { !bootstrapToolchain.didWork }
+
     commandLine 'bash', '-c', "./configure --enable-local --prefix=${rootDir}"
 }
+
+apply plugin: 'org.ysb33r.gnumake'
 
 makeClean.group = "GNU Make tasks"
 
 makeBuild {
     outputs.file "$rootDir/ct-ng"
     outputs.upToDateWhen { !configureToolchain.didWork }
+
     mustRunAfter makeClean
     dependsOn copyCustomConfig, configureToolchain
 }
+
+
 
 task generateMenuConfig(type: Exec, dependsOn: [makeBuild], group: 'Toolchain') {
     environment TC_PREFIX: arch, TC_ARCH_SUFFIX: "${versionExtra}-${version}",
@@ -92,6 +101,10 @@ task buildToolchain(type: Exec, dependsOn: makeBuild) {
     commandLine 'bash', '-c', './ct-ng build'
 }
 
+
+task printVersion()<<{
+    println version
+}
 
 task build(dependsOn: [buildToolchain], group: 'Toolchain')
 
