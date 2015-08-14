@@ -45,10 +45,14 @@ task createBuildDirs() {
 task copyCustomConfig() << {
     //We're using an ANT copy here instead of a Gradle copy because
     // Gradle does not like copying files into the rootDir
+    description "Copies ${configFile} to ${rootDir}/.confi" +
+            "g"
     ant.copy(file: configFile, tofile: "$rootDir/.config")
 }
 
 task bootstrapToolchain(type: Exec, dependsOn: [createBuildDirs, copyCustomConfig]) {
+    description "Runs ./bootstrap for toolchain configuration"
+
     outputs.file "$rootDir/config.status"
     outputs.file "$rootDir/.config"
 
@@ -56,6 +60,8 @@ task bootstrapToolchain(type: Exec, dependsOn: [createBuildDirs, copyCustomConfi
 }
 
 task configureToolchain(type: Exec, dependsOn: bootstrapToolchain) {
+    description "Runs ./configure for toolchain configuration"
+
     outputs.file "$rootDir/config.status"
     outputs.upToDateWhen { !bootstrapToolchain.didWork }
 
@@ -64,9 +70,27 @@ task configureToolchain(type: Exec, dependsOn: bootstrapToolchain) {
 
 apply plugin: 'org.ysb33r.gnumake'
 
-makeClean.group = "GNU Make tasks"
+makeClean {
+    description "Runs make clean on toolchain configuration"
+    group "Toolchain configuration"
+}
+
+make {
+    description "Runs make build for toolchain configuration - WILL BE REMOVED OR CONSOLIDATED WITH 'makeBuild' task"
+    group "Toolchain configuration"
+
+    makeOutputs{
+        file "$rootDir/ct-ng"
+    }
+
+    mustRunAfter makeClean
+    dependsOn copyCustomConfig, configureToolchain
+}
 
 makeBuild {
+    description "Runs make build for toolchain configuration"
+    group "Toolchain configuration"
+
     outputs.file "$rootDir/ct-ng"
     outputs.upToDateWhen { !configureToolchain.didWork }
 
@@ -77,13 +101,15 @@ makeBuild {
 
 
 task generateMenuConfig(type: Exec, dependsOn: [makeBuild], group: 'Toolchain') {
+    description "~WIP~ Executes ./ct-ng menuconfig to configure toolchain"
+
     environment TC_PREFIX: arch, TC_ARCH_SUFFIX: "${versionExtra}-${version}",
             TC_PREFIX_DIR: buildOutputDir, TC_LOCAL_TARBALLS_DIR: downloadDir
 
     commandLine 'bash', '-c', './ct-ng menuconfig'
 }
 
-task cleanToolchain(type: Exec){
+task cleanToolchain(type: Exec) {
     description "Executes ./ct-ng distclean - Clean actual toolchain output"
 
     environment TC_PREFIX: arch, TC_ARCH_SUFFIX: "${versionExtra}-${version}",
@@ -102,11 +128,13 @@ task buildToolchain(type: Exec, dependsOn: makeBuild) {
 }
 
 
-task printVersion()<<{
+task printVersion(description: "Print current build version number") << {
     println version
 }
 
-task build(dependsOn: [buildToolchain], group: 'Toolchain')
+task build(dependsOn: [buildToolchain], group: 'Toolchain'){
+    description "Executes toolchain configuration and ct-ng build"
+}
 
 task clean(type: Delete, group: 'Toolchain', dependsOn: cleanToolchain) {
     description "Deletes ONLY crosstool-ng build output"
@@ -135,7 +163,7 @@ distributions {
     }
 }
 
-distTar{
+distTar {
     compression = Compression.GZIP
 }
 
@@ -169,6 +197,7 @@ publishing {
 
 
 task wrapper(type: Wrapper) {
+    description "Generates gradlew scripts for a specified gradle version"
     gradleVersion = '2.4'
 }
 
