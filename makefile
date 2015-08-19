@@ -37,7 +37,7 @@ $(distributions_dir):
 
 createbuildirs: | $(download_dir) $(build_output_dir) $(distributions_dir)
 
-bootstraptoolchain: $(config_file)
+bootstraptoolchain: $(config_file) createbuildirs
 	./bootstrap
 
 configuretoolchain: bootstraptoolchain config.status
