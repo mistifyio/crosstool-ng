@@ -10,8 +10,9 @@ Makefile
 paths.*
 !paths.in
 config.gen/
-.config
 .config.2
+bootstraptoolchain.cache
+configuretoolchain.cache
 
 # Temporaries
 .*.swp
