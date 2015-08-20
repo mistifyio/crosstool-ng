@@ -1,30 +1,31 @@
 root_dir = $(shell pwd)
 
-build_dir = $(root_dir)/build
+build_dir = $(root_dir)/target
 build_output_dir = $(build_dir)/compiled_output
-download_dir = $(build_dir)/downloads
+download_dir = $(HOME)/.toolchain/downloads
 distributions_dir = $(build_dir)/distributions
 
-version = 1.0.1
-version_extra =
+version = $(shell cat .version)
 arch = x86_64-unknown-linux-gnu
+version_extra = base
 
 config_file = .config
-distribution = $(distributions_dir)/crosstool-ng-$(arch)-$(version)$(version_extra).tar.gz
+config_status_file = config.status
+distribution = $(distributions_dir)/crosstool-ng-$(arch)-$(version)-$(version_extra).tar.gz
 
-.Phony: bootstraptoolchain build clean configuretoolchain fullclean dist distclean version
+.Phony: bootstraptoolchain build clean fullclean dist distclean version tagformat
 
+# Needed for ct-ng build script
 export TC_PREFIX=$(arch)
 export TC_ARCH_SUFFIX=$(versionExtra)-$(version)
 export TC_PREFIX_DIR=$(build_output_dir)
 export TC_LOCAL_TARBALLS_DIR=$(download_dir)
 
+all: build
+
 $(config_file):;
 
-config.status:;
-
-build: configuretoolchain
-	./ct-ng build
+$(config_status_file):;
 
 $(download_dir):
 	mkdir -p $(download_dir)
@@ -37,25 +38,32 @@ $(distributions_dir):
 
 createbuildirs: | $(download_dir) $(build_output_dir) $(distributions_dir)
 
-bootstraptoolchain: $(config_file) createbuildirs
+bootstraptoolchain.cache: $(config_file)
 	./bootstrap
+	touch bootstraptoolchain.cache
 
-configuretoolchain: bootstraptoolchain config.status
+configuretoolchain.cache: bootstraptoolchain.cache $(config_status_file)
 	./configure --enable-local --prefix=$(root_dir)
+	touch configuretoolchain.cache
+
+build: configuretoolchain.cache createbuildirs
+	./ct-ng build
 
 dist:
 	tar cvzf $(distribution) $(build_output_dir)
 
 distclean:
-	-rm $(distribution)
+	-rm $(distributions_dir)/*
 
 clean:
-	rm -rf $(build_output_dir)
+	-rm -rf $(build_output_dir)
 	if [ -f ct-ng ]; then ./ct-ng distclean; fi;
 
 fullclean: clean
-	rm $(config_file)
-	-rm config.status
+	-rm $(config_status_file)
 
 version:
 	@echo $(version)
+
+tagformat:
+	@echo $(arch)-{new_version}-$(version_extra)
