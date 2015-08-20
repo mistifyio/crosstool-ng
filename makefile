@@ -13,7 +13,7 @@ config_file = .config
 config_status_file = config.status
 distribution = $(distributions_dir)/crosstool-ng-$(arch)-$(version)-$(version_extra).tar.gz
 
-.Phony: bootstraptoolchain build clean fullclean dist distclean version tagformat
+.Phony: build clean fullclean dist distclean version tagformat
 
 # Needed for ct-ng build script
 export TC_PREFIX=$(arch)
