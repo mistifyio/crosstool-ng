@@ -6,8 +6,8 @@ all: conf mconf nconf
 	@true   # Just be silent, you fscking son of a fscking beach...
 
 # Build flags
-CFLAGS = -DCONFIG_=\"CT_\" -DPACKAGE="\"crosstool-NG $(VERSION)\""
-LDFLAGS =
+CFLAGS = @CFLAGS@ -DCONFIG_=\"CT_\" -DPACKAGE="\"crosstool-NG $(VERSION)\""
+LDFLAGS = @LDFLAGS@
 
 # Compiler flags to use gettext
 ifeq ($(gettext),)
@@ -16,7 +16,7 @@ endif
 
 # Compiler and linker flags to use ncurses
 NCURSES_CFLAGS = -DCURSES_LOC="\"$(curses_hdr)\""
-NCURSES_LDFLAGS = $(LIBS)
+NCURSES_LDFLAGS = @LIBS@
 
 # Common source files
 COMMON_SRC = zconf.tab.c

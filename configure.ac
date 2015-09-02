@@ -397,5 +397,5 @@ AS_IF(
 #--------------------------------------------------------------------
 # Finally, generate the output file(s)
 #--------------------------------------------------------------------
-AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES([Makefile kconfig/Makefile])
 AC_OUTPUT
