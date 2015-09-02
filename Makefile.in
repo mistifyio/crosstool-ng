@@ -351,13 +351,14 @@ install-lib-samples: $(DESTDIR)$(libdir) install-lib-main
 	 done
 	@$(install) -m 644 samples/samples.mk "$(DESTDIR)$(libdir)/samples/samples.mk"
 
-KCONFIG_FILES := conf mconf nconf kconfig.mk
+KCONFIG_FILES := conf mconf nconf
 install-lib-kconfig: $(DESTDIR)$(libdir) install-lib-main
 	@echo "  INST    'kconfig/'"
 	@mkdir -p "$(DESTDIR)$(libdir)/kconfig"
-	@for f in $(KCONFIG_FILES); do                                      \
-	    install "kconfig/$${f}" "$(DESTDIR)$(libdir)/kconfig/$${f}";    \
+	@for f in $(KCONFIG_FILES); do                                             \
+	    $(install) -m 755 "kconfig/$${f}" "$(DESTDIR)$(libdir)/kconfig/$${f}"; \
 	 done
+	@$(install) -m 644 kconfig/kconfig.mk "$(DESTDIR)$(libdir)/kconfig/kconfig.mk"
 
 install-doc: $(DESTDIR)$(docdir)
 	@echo "  INST    'docs/*.txt'"
