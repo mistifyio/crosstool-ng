@@ -17,12 +17,12 @@ export GREP_OPTIONS=
 # Dump a single sample
 # Note: we use the specific .config.sample config file
 dump_single_sample() {
-    local verbose=0
-    local wiki=0
-    local complibs
+    verbose=0
+    wiki=0
+    complibs=
     [ "$1" = "-v" ] && verbose=1 && shift
     [ "$1" = "-w" ] && wiki=1 && shift
-    local sample="$1"
+    sample="$1"
     case "${sample}" in
         current)
             sample_type="l"

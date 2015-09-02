@@ -48,9 +48,9 @@ doHelp() {
 
 # Extract field $3 from version $1 with separator $2
 getVersionField() {
-    local version="$1"
-    local sep="$2"
-    local field="$3"
+    version="$1"
+    sep="$2"
+    field="$3"
 
     echo "${version}${sep}${sep}${sep}${sep}" |cut -d ${sep} -f ${field}
 }
@@ -63,12 +63,8 @@ getVersionField() {
 # #OBS          : set to non empty if obsolete, to empty otherwise
 # $1            : version string to add
 addToolVersion() {
-    local version="$1"
-    local file="$2"
-    local config_ver_option
-    local exp_obs_prompt
-    local deps v ver_M ver_m ver_p
-    local SedExpr1 SedExpr2
+    version="$1"
+    file="$2"
 
     [ -f "${file}" ] || return 0
 

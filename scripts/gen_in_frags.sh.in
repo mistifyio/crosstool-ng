@@ -1,4 +1,4 @@
-#!/bin/sh
+#!@@CT_bash@@
 set -e
 
 # This scripts generates either a choice or a menuconfig

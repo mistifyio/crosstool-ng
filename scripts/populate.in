@@ -1,4 +1,4 @@
-#!/bin/sh
+#!@@CT_bash@@
 # This script will populate the root directory with libs from the sysroot.
 # (C) 2007 Yann E. MORIN
 # Licensed under the GPL v2

@@ -154,6 +154,7 @@ uninstall: real-uninstall
 
 build-bin: $(PROG_NAME)             \
            scripts/crosstool-NG.sh  \
+           scripts/gen_in_frags.sh  \
            scripts/saveSample.sh    \
            scripts/showTuple.sh
 	@chmod 755 $^
